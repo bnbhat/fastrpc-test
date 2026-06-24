@@ -1,0 +1,60 @@
+name: fastrpc-test
+title: FastRPC Test Calculator
+version: '0.1'
+summary: Qualcomm DSP-accelerated calculator
+description: |
+  Calculator application that offloads computation to the Qualcomm
+  DSP via FastRPC. Requires the fastrpc snap to be installed
+  and the fastrpc-libs and fastrpc-dsp interfaces to be connected.
+license: proprietary
+base: core24
+
+grade: devel
+confinement: strict
+
+# Map the skeleton library into the standard rfsa path so the fastrpc
+# daemon can find it when the calculator opens a FastRPC session.
+layout:
+  /usr/lib/rfsa/adsp:
+    bind: $SNAP/usr/lib/rfsa/adsp
+  /usr/lib/dsp:
+    bind: $SNAP/fastrpc-libs/dsp
+
+plugs:
+  fastrpc-libs-plug:
+    interface: content
+    content: fastrpc-libs
+    target: $SNAP/fastrpc-libs
+
+  fastrpc-dsp-plug:
+    interface: custom-device
+    custom-device: fastrpc-dsp
+
+parts:
+  calculator:
+    plugin: dump
+    source: .
+    organize:
+      calculator: bin/calculator
+      libcalculator.so: usr/lib/aarch64-linux-gnu/libcalculator.so
+      libcalculator_skel.so: usr/lib/rfsa/adsp/libcalculator_skel.so
+    override-build: |
+      craftctl default
+      # Mount point for the fastrpc-libs content slot from qcom-fastrpc
+      mkdir -p $SNAPCRAFT_PART_INSTALL/fastrpc-libs
+      # calculator is incorrectly linked against the unversioned libcdsprpc.so
+      # (a dev-package symlink) instead of the soname libcdsprpc.so.1.
+      # Create a compat symlink in the snap's own lib dir that resolves through
+      # the fastrpc-libs content mount at runtime.
+      mkdir -p $SNAPCRAFT_PART_INSTALL/usr/lib/aarch64-linux-gnu
+      ln -sf ../../../fastrpc-libs/aarch64-linux-gnu/libcdsprpc.so.1 \
+        $SNAPCRAFT_PART_INSTALL/usr/lib/aarch64-linux-gnu/libcdsprpc.so
+
+apps:
+  calculator:
+    command: bin/calculator
+    environment:
+      LD_LIBRARY_PATH: $SNAP/fastrpc-libs/aarch64-linux-gnu:$SNAP/usr/lib/aarch64-linux-gnu:$LD_LIBRARY_PATH
+    plugs:
+      - fastrpc-libs-plug
+      - fastrpc-dsp-plug
