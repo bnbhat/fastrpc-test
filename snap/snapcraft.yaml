@@ -6,11 +6,13 @@ description: |
   Calculator application that offloads computation to the Qualcomm
   DSP via FastRPC. Requires the fastrpc snap to be installed
   and the fastrpc-libs and fastrpc-dsp interfaces to be connected.
-license: proprietary
 base: core24
 
 grade: devel
 confinement: strict
+
+platforms:
+  arm64:
 
 # Map the skeleton library into the standard rfsa path so the fastrpc
 # daemon can find it when the calculator opens a FastRPC session.
